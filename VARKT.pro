@@ -11,15 +11,18 @@ CONFIG += c++17
 RC_ICONS = myappico.ico
 
 SOURCES += \
+    dialogsavepng.cpp \
     main.cpp \
     mainwindow.cpp \
     qcustomplot.cpp
 
 HEADERS += \
+    dialogsavepng.h \
     mainwindow.h \
     qcustomplot.h
 
 FORMS += \
+    dialogsavepng.ui \
     mainwindow.ui
 
 # Default rules for deployment.

@@ -130,7 +130,7 @@ void MainWindow::calcValues(bool tab)
 void MainWindow::buildTable()
 {
     rows = T.size();
-    int tableSize = rows > 1000 ? 1000 : rows;
+    int tableSize = rows > maxRows ? maxRows : rows;
     ui->tableWidget->clear();
     ui->tableWidget->setRowCount(tableSize);
     ui->tableWidget->setHorizontalHeaderLabels(str);
@@ -215,8 +215,11 @@ void MainWindow::on_horizontalSlider_sliderMoved(int position)
 
 void MainWindow::on_actionSave_PNG_triggered()
 {
-    QString filePath = QFileDialog::getSaveFileName(this, tr("Save File"), "/home/jana/untiteled.png", tr("Images (*.png)"));
-    ui->widget->savePng(filePath, 0, 0, 3,-1, 96);
+    DialogSavePNG dialog;
+    connect(&dialog, &DialogSavePNG::accepted, this, [&](){
+        ui->widget->savePng(dialog.path, dialog.hRes, dialog.vRes);
+    });
+    dialog.exec();
 }
 
 
@@ -243,5 +246,12 @@ void MainWindow::on_horizontalSlider_sliderReleased()
 {
     isMoving = false;
     buildGraph(true);
+}
+
+
+void MainWindow::on_spinBoxTable_editingFinished()
+{
+    maxRows = ui->spinBoxTable->value();
+    buildTable();
 }
 
