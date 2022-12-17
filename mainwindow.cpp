@@ -13,16 +13,19 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox->addItem("Height");
     ui->comboBox->addItem("Mass");
 
-
-    ui->widget->xAxis->setObjectName("Time");
-
     str << "Time (s)" << "Velocity (m/s)" << "Mass (kg)" << "Height (m)";
 
     ui->tableWidget->setColumnCount(4);
 
+    ui->widget->xAxis->setLabel("Time");
+
     setWindowTitle("VARKT");
 
-    buildGraph();
+    ui->tableWidget->resize(4, b / 0.01);
+
+    connect(timer, &QTimer::timeout, this, &MainWindow::timer_fired);
+
+    buildGraph(true);
 }
 
 MainWindow::~MainWindow()
@@ -30,7 +33,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::buildGraph()
+void MainWindow::buildGraph(bool tab)
 {
     T.clear();
     x = 0;
@@ -46,8 +49,10 @@ void MainWindow::buildGraph()
     V.clear();
     H.clear();
     currentPos = 0;
+    if (timer->isActive())
+        timer->stop();
 
-    calcValues();
+    calcValues(tab);
 }
 
 void MainWindow::iterations()
@@ -75,17 +80,17 @@ void MainWindow::endBuild()
     case 0:
         X = V;
         yMax = vMax;
-        ui->widget->yAxis->setObjectName("Velocity");
+        ui->widget->yAxis->setLabel("Velocity");
         break;
     case 1:
         X = H;
         yMax = hMax;
-        ui->widget->yAxis->setObjectName("Height");
+        ui->widget->yAxis->setLabel("Height");
         break;
     case 2:
         X = M;
         yMax = mMax;
-        ui->widget->yAxis->setObjectName("Mass");
+        ui->widget->yAxis->setLabel("Mass");
         break;
     }
 
@@ -103,7 +108,7 @@ void MainWindow::endBuild()
     ui->widget->replot();
 }
 
-void MainWindow::calcValues()
+void MainWindow::calcValues(bool tab)
 {
     if (!ui->checkBox->isChecked())
     {
@@ -111,55 +116,65 @@ void MainWindow::calcValues()
         {
             iterations();
         }
-        buildTable();
+        if (!isMoving && tab)
+            buildTable();
+        endBuild();
     } else
     {
-        timer = new QTimer(this);
-        connect(timer, &QTimer::timeout, this, &MainWindow::timer_fired);
-        timer->start(1);
-    }
 
-    endBuild();
+        time = 0;
+        timer->start(timedelta);
+    }
 }
 
 void MainWindow::buildTable()
 {
     rows = T.size();
+    int tableSize = rows > 1000 ? 1000 : rows;
     ui->tableWidget->clear();
-    ui->tableWidget->setRowCount(rows);
+    ui->tableWidget->setRowCount(tableSize);
     ui->tableWidget->setHorizontalHeaderLabels(str);
 
     for (int i = 0; i < 4; i++)
-        for (int j = 0; j < rows; ++j)
+        for (int j = 0; j < tableSize; ++j)
         {
             switch (i)
             {
             case 0:
-                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(T[j])));
+                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(T[(int)(j * ((double) rows / tableSize))])));
                 break;
             case 1:
-                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(V[j])));
+                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(V[(int)(j * ((double) rows / tableSize))])));
                 break;
             case 2:
-                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(M[j])));
+                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(M[(int)(j * ((double) rows / tableSize))])));
                 break;
             case 3:
-                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(H[j])));
+                ui->tableWidget->setItem(j, i, new QTableWidgetItem(QString::number(H[(int)(j * ((double) rows / tableSize))])));
                 break;
             }
         }
     ui->tableWidget->resizeColumnsToContents();
+    ui->tableWidget->resizeRowsToContents();
 
 }
 
 void MainWindow::timer_fired()
 {
-    iterations();
-    x += delta;
-    buildTable();
+    time += timedelta;
+    int n = (((long double)time / 5000.0) - (x / b)) * (b / delta);
+    for (int i = 0; i < n; i++)
+    {
+        iterations();
+        x += delta;
+    }
     endBuild();
     if (x > b)
+    {
         timer->stop();
+        if (!isMoving)
+            buildTable();
+    }
 }
 
 void MainWindow::mass()
@@ -193,8 +208,9 @@ void MainWindow::height()
 
 void MainWindow::on_horizontalSlider_sliderMoved(int position)
 {
+    isMoving = true;
     delta = position/100.0;
-    buildGraph();
+    buildGraph(false);
 }
 
 void MainWindow::on_actionSave_PNG_triggered()
@@ -206,12 +222,26 @@ void MainWindow::on_actionSave_PNG_triggered()
 
 void MainWindow::on_comboBox_currentIndexChanged(int index)
 {
-    buildGraph();
+    buildGraph(false);
 }
 
 
 void MainWindow::on_checkBox_stateChanged(int arg1)
 {
-    buildGraph();
+    buildGraph(false);
+}
+
+
+void MainWindow::on_spinBox_editingFinished()
+{
+    timedelta = ui->spinBox->value();
+    buildGraph(false);
+}
+
+
+void MainWindow::on_horizontalSlider_sliderReleased()
+{
+    isMoving = false;
+    buildGraph(true);
 }
 
